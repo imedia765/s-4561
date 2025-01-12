@@ -72,8 +72,8 @@ const WebTools = () => {
           <WebMetricsForm onAnalyze={handleAnalyze} isLoading={isLoading} />
           {metrics.length > 0 && <MetricsDisplay metrics={metrics} />}
           <MonitoringPanel
-            isActive={isMonitoring}
-            onToggle={() => setIsMonitoring(!isMonitoring)}
+            isMonitoring={isMonitoring}
+            onToggleMonitoring={() => setIsMonitoring(!isMonitoring)}
           />
           <ConsoleOutput logs={logs} />
         </CardContent>
