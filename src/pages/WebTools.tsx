@@ -1,85 +1,87 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MetricsDisplay } from "@/components/web-tools/MetricsDisplay";
 import { WebMetricsForm } from "@/components/web-tools/WebMetricsForm";
-import { ConsoleOutput } from "@/components/web-tools/ConsoleOutput";
+import { MetricsDisplay } from "@/components/web-tools/MetricsDisplay";
+import { DetailedWebMetricsD3 } from "@/components/visualizations/DetailedWebMetricsD3";
+import { DetailedWebMetricsHighcharts } from "@/components/visualizations/DetailedWebMetricsHighcharts";
+import { DetailedWebMetricsP5 } from "@/components/visualizations/DetailedWebMetricsP5";
 import { MonitoringPanel } from "@/components/web-tools/MonitoringPanel";
+import { UrlHistory } from "@/components/web-tools/UrlHistory";
 import { useToast } from "@/components/ui/use-toast";
-import { isValidUrl, analyzeWebsite, WebsiteMetrics } from "@/utils/websiteAnalyzer";
+import { analyzeWebsite } from "@/utils/websiteAnalyzer";
 
-const WebTools = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [metrics, setMetrics] = useState<WebsiteMetrics[]>([]);
-  const [logs, setLogs] = useState<string[]>([]);
+const MAX_HISTORY = 5;
+const URL_HISTORY_KEY = 'url-history';
+
+export default function WebTools() {
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [metrics, setMetrics] = useState<Array<{ metric: string; value: string }>>([]);
   const [isMonitoring, setIsMonitoring] = useState(false);
+  const [urlHistory, setUrlHistory] = useState<string[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isMonitoring) {
-      interval = setInterval(() => {
-        setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Health check performed`]);
-      }, 30000);
+    const savedHistory = localStorage.getItem(URL_HISTORY_KEY);
+    if (savedHistory) {
+      setUrlHistory(JSON.parse(savedHistory));
     }
-    return () => clearInterval(interval);
-  }, [isMonitoring]);
+  }, []);
+
+  const addToHistory = (url: string) => {
+    const newHistory = [url, ...urlHistory.filter(u => u !== url)].slice(0, MAX_HISTORY);
+    setUrlHistory(newHistory);
+    localStorage.setItem(URL_HISTORY_KEY, JSON.stringify(newHistory));
+  };
 
   const handleAnalyze = async (url: string) => {
-    if (!isValidUrl(url)) {
-      toast({
-        title: "Invalid URL",
-        description: "Please enter a valid URL including http:// or https://",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    setLogs([`[${new Date().toLocaleTimeString()}] Starting comprehensive analysis of ${url}...`]);
-
+    setIsAnalyzing(true);
     try {
       const results = await analyzeWebsite(url);
       setMetrics(results);
-      setLogs(prev => [
-        ...prev, 
-        `[${new Date().toLocaleTimeString()}] Analysis completed successfully`,
-        `[${new Date().toLocaleTimeString()}] Found ${results.length} metrics`
-      ]);
+      addToHistory(url);
       toast({
         title: "Analysis Complete",
-        description: "Website metrics have been updated",
+        description: "Website metrics have been analyzed successfully.",
       });
     } catch (error) {
-      console.error(error);
-      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Error: ${error}`]);
       toast({
-        title: "Error",
-        description: "Failed to analyze website. Please try again.",
+        title: "Analysis Failed",
+        description: error instanceof Error ? error.message : "Failed to analyze website",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsAnalyzing(false);
     }
   };
 
+  const toggleMonitoring = () => {
+    setIsMonitoring(!isMonitoring);
+  };
+
   return (
-    <div className="container mx-auto p-4 space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Web Development Tools</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <WebMetricsForm onAnalyze={handleAnalyze} isLoading={isLoading} />
-          {metrics.length > 0 && <MetricsDisplay metrics={metrics} />}
-          <MonitoringPanel
-            isMonitoring={isMonitoring}
-            onToggleMonitoring={() => setIsMonitoring(!isMonitoring)}
-          />
-          <ConsoleOutput logs={logs} />
-        </CardContent>
-      </Card>
+    <div className="container mx-auto px-4 py-8 space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2">
+          <WebMetricsForm onAnalyze={handleAnalyze} isLoading={isAnalyzing} />
+        </div>
+        <div>
+          <UrlHistory urls={urlHistory} onSelectUrl={handleAnalyze} />
+        </div>
+      </div>
+
+      {metrics.length > 0 && (
+        <div className="space-y-8">
+          <MetricsDisplay metrics={metrics} />
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <DetailedWebMetricsD3 data={metrics} />
+            <DetailedWebMetricsHighcharts data={metrics} />
+          </div>
+          
+          <DetailedWebMetricsP5 data={metrics} />
+          
+          <MonitoringPanel isMonitoring={isMonitoring} onToggleMonitoring={toggleMonitoring} />
+        </div>
+      )}
     </div>
   );
-};
-
-export default WebTools;
+}
