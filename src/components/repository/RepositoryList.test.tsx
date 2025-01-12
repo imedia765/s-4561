@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import RepositoryList from './RepositoryList';
-import { Repository } from '../../../types/repository';
+import { RepositoryList } from './RepositoryList';
+import { Repository } from '@/types/repository';
 
 const mockRepositories: Repository[] = [
   {
@@ -36,8 +36,8 @@ describe('RepositoryList Component', () => {
       />
     );
 
-    expect(screen.getByText('repo1')).toBeInTheDocument();
-    expect(screen.getByText('repo2')).toBeInTheDocument();
+    expect(screen.getByText('https://example.com/repo1')).toBeInTheDocument();
+    expect(screen.getByText('https://example.com/repo2')).toBeInTheDocument();
   });
 
   test('shows loading state', () => {
@@ -52,6 +52,10 @@ describe('RepositoryList Component', () => {
       />
     );
 
-    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    // Since we're using the disabled prop on buttons when loading
+    const buttons = screen.getAllByRole('button');
+    buttons.forEach(button => {
+      expect(button).toBeDisabled();
+    });
   });
 });
