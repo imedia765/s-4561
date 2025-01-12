@@ -25,16 +25,17 @@ export const DetailedWebMetricsP5 = ({ data }: DetailedWebMetricsP5Props) => {
 
   const categories = {
     performance: ['Page Load Time', 'Page Size', 'Largest Contentful Paint'],
-    seo: ['Meta Description', 'H1 Tag', 'Canonical Tag'],
-    security: ['HTTPS', 'Content Security Policy'],
-    accessibility: ['Image Alt Tags', 'ARIA Labels']
+    seo: ['Meta Description', 'H1 Tag', 'Canonical Tag', 'Meta Keywords', 'Title Tag', 'Robots Meta'],
+    security: ['HTTPS', 'Content Security Policy', 'X-Frame-Options', 'X-Content-Type-Options'],
+    accessibility: ['Image Alt Tags', 'ARIA Labels', 'HTML Lang Attribute', 'Skip Links']
   };
 
   const categoryColors: Record<string, ColorTuple> = {
     performance: { r: 252, g: 82, b: 74 },
     seo: { r: 56, g: 189, b: 248 },
     security: { r: 34, g: 197, b: 94 },
-    accessibility: { r: 168, g: 85, b: 247 }
+    accessibility: { r: 168, g: 85, b: 247 },
+    other: { r: 156, g: 163, b: 175 } // Default color for unknown categories
   };
 
   const setup = (p5: p5Types, canvasParentRef: Element) => {
@@ -67,14 +68,18 @@ export const DetailedWebMetricsP5 = ({ data }: DetailedWebMetricsP5Props) => {
     circles.forEach((circle, i) => {
       let nextCircle = circles[(i + 1) % circles.length];
       let gradient = p5.drawingContext as CanvasRenderingContext2D;
+      let currentColor = categoryColors[circle.category] || categoryColors.other;
+      let nextColor = categoryColors[nextCircle.category] || categoryColors.other;
+      
       let gradient1 = gradient.createLinearGradient(
         Math.cos(circle.angle) * circle.radius,
         Math.sin(circle.angle) * circle.radius,
         Math.cos(nextCircle.angle) * nextCircle.radius,
         Math.sin(nextCircle.angle) * nextCircle.radius
       );
-      gradient1.addColorStop(0, `rgba(${categoryColors[circle.category].r}, ${categoryColors[circle.category].g}, ${categoryColors[circle.category].b}, 0.3)`);
-      gradient1.addColorStop(1, `rgba(${categoryColors[nextCircle.category].r}, ${categoryColors[nextCircle.category].g}, ${categoryColors[nextCircle.category].b}, 0.3)`);
+      
+      gradient1.addColorStop(0, `rgba(${currentColor.r}, ${currentColor.g}, ${currentColor.b}, 0.3)`);
+      gradient1.addColorStop(1, `rgba(${nextColor.r}, ${nextColor.g}, ${nextColor.b}, 0.3)`);
       gradient.strokeStyle = gradient1;
       p5.strokeWeight(2);
       p5.line(
@@ -95,7 +100,7 @@ export const DetailedWebMetricsP5 = ({ data }: DetailedWebMetricsP5Props) => {
       
       // Draw outer glow for present/yes values
       if (circle.value === 'Present' || circle.value === 'Yes') {
-        const color = categoryColors[circle.category];
+        const color = categoryColors[circle.category] || categoryColors.other;
         for (let i = 4; i > 0; i--) {
           p5.noStroke();
           p5.fill(color.r, color.g, color.b, 15);
@@ -105,7 +110,7 @@ export const DetailedWebMetricsP5 = ({ data }: DetailedWebMetricsP5Props) => {
 
       // Draw main circle with gradient
       p5.noStroke();
-      const color = categoryColors[circle.category];
+      const color = categoryColors[circle.category] || categoryColors.other;
       p5.fill(color.r, color.g, color.b, 200);
       p5.circle(x, y, 40);
 
