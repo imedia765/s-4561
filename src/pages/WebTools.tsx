@@ -6,10 +6,11 @@ import { MetricsDisplay } from "@/components/web-tools/MetricsDisplay";
 import { ConsoleOutput } from "@/components/web-tools/ConsoleOutput";
 import { MonitoringPanel } from "@/components/web-tools/MonitoringPanel";
 import { useToast } from "@/components/ui/use-toast";
+import { isValidUrl, analyzeWebsite, WebsiteMetrics } from "@/utils/websiteAnalyzer";
 
 const WebTools = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [metrics, setMetrics] = useState<Array<{ metric: string; value: string }>>([]);
+  const [metrics, setMetrics] = useState<WebsiteMetrics[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const { toast } = useToast();
@@ -25,19 +26,22 @@ const WebTools = () => {
   }, [isMonitoring]);
 
   const handleAnalyze = async (url: string) => {
+    if (!isValidUrl(url)) {
+      toast({
+        title: "Invalid URL",
+        description: "Please enter a valid URL including http:// or https://",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
+    setLogs([`[${new Date().toLocaleTimeString()}] Starting analysis of ${url}...`]);
+
     try {
-      const mockMetrics = [
-        { metric: "Page Load Time", value: "2.3s" },
-        { metric: "Page Size", value: "1.2MB" },
-        { metric: "Meta Description", value: "Present" },
-        { metric: "H1 Tag", value: "Present" },
-        { metric: "HTTPS", value: "Yes" },
-        { metric: "Image Alt Tags", value: "Present" }
-      ];
-      
-      setMetrics(mockMetrics);
-      setLogs([`[${new Date().toLocaleTimeString()}] Analyzing ${url}...`]);
+      const results = await analyzeWebsite(url);
+      setMetrics(results);
+      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Analysis completed successfully`]);
       toast({
         title: "Analysis Complete",
         description: "Website metrics have been updated",
@@ -46,7 +50,7 @@ const WebTools = () => {
       setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Error: ${error}`]);
       toast({
         title: "Error",
-        description: "Failed to analyze website",
+        description: "Failed to analyze website. Please try again.",
         variant: "destructive",
       });
     } finally {
