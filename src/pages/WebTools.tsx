@@ -1,19 +1,32 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { WebMetricsForm } from "@/components/web-tools/WebMetricsForm";
 import { MetricsDisplay } from "@/components/web-tools/MetricsDisplay";
 import { ConsoleOutput } from "@/components/web-tools/ConsoleOutput";
+import { MonitoringPanel } from "@/components/web-tools/MonitoringPanel";
+import { useToast } from "@/components/ui/use-toast";
 
 const WebTools = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [metrics, setMetrics] = useState<Array<{ metric: string; value: string }>>([]);
   const [logs, setLogs] = useState<string[]>([]);
+  const [isMonitoring, setIsMonitoring] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (isMonitoring) {
+      const interval = setInterval(() => {
+        setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Health check performed`]);
+      }, 30000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isMonitoring]);
 
   const handleAnalyze = async (url: string) => {
     setIsLoading(true);
     try {
-      // Mock data for demonstration - replace with actual API call
       const mockMetrics = [
         { metric: "Page Load Time", value: "2.3s" },
         { metric: "Page Size", value: "1.2MB" },
@@ -25,8 +38,17 @@ const WebTools = () => {
       
       setMetrics(mockMetrics);
       setLogs([`[${new Date().toLocaleTimeString()}] Analyzing ${url}...`]);
+      toast({
+        title: "Analysis Complete",
+        description: "Website metrics have been updated",
+      });
     } catch (error) {
       setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Error: ${error}`]);
+      toast({
+        title: "Error",
+        description: "Failed to analyze website",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -44,6 +66,10 @@ const WebTools = () => {
             </div>
             <div className="grid gap-6">
               <WebMetricsForm onAnalyze={handleAnalyze} isLoading={isLoading} />
+              <MonitoringPanel 
+                isMonitoring={isMonitoring} 
+                onToggleMonitoring={() => setIsMonitoring(!isMonitoring)} 
+              />
               <MetricsDisplay metrics={metrics} />
               <ConsoleOutput logs={logs} />
             </div>
