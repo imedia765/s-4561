@@ -9,8 +9,7 @@ const mockRepositories: Repository[] = [
     url: 'https://example.com/repo1',
     is_master: true,
     branches: [],
-    default_branch: 'main',
-    created_at: '2024-01-01'
+    default_branch: 'main'
   },
   {
     id: '2',
@@ -18,8 +17,7 @@ const mockRepositories: Repository[] = [
     url: 'https://example.com/repo2',
     is_master: false,
     branches: [],
-    default_branch: 'main',
-    created_at: '2024-01-02'
+    default_branch: 'main'
   }
 ];
 
