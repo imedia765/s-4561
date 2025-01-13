@@ -31,26 +31,43 @@ export const verifyMember = async (memberNumber: string) => {
   console.log('Verifying member:', memberNumber);
   
   const maxRetries = 3;
-  const retryDelay = 1000; // 1 second delay between retries
+  const retryDelay = 2000; // Increased to 2 seconds between retries
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
+      // Add delay between attempts (except first attempt)
+      if (attempt > 1) {
+        console.log(`Waiting ${retryDelay}ms before attempt ${attempt}...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+
       console.log(`Attempt ${attempt} to verify member ${memberNumber}`);
+      
+      // Check network connectivity first
+      try {
+        await fetch('https://trzaeinxlytyqxptkuyj.supabase.co/rest/v1/health', {
+          method: 'HEAD'
+        });
+      } catch (networkError) {
+        console.error('Network connectivity check failed:', networkError);
+        if (attempt === maxRetries) {
+          throw new Error('Network connection error. Please check your connection and try again.');
+        }
+        continue;
+      }
       
       const { data: members, error: memberError } = await supabase
         .from('members')
         .select('id, member_number, status')
         .eq('member_number', memberNumber)
         .eq('status', 'active')
-        .limit(1)
         .maybeSingle();
 
       if (memberError) {
         console.error(`Member verification error (attempt ${attempt}):`, memberError);
         
-        // Check for specific error types
-        if (memberError.message?.includes('JWT')) {
-          console.log('JWT error detected, clearing session...');
+        if (memberError.message?.includes('JWT') || memberError.message?.includes('token')) {
+          console.log('JWT/token error detected, clearing session...');
           await clearAuthState();
         }
         
@@ -58,9 +75,6 @@ export const verifyMember = async (memberNumber: string) => {
           console.error('Max retries reached, throwing error');
           throw memberError;
         }
-        
-        console.log(`Waiting ${retryDelay}ms before retry...`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
         continue;
       }
 
@@ -77,15 +91,12 @@ export const verifyMember = async (memberNumber: string) => {
         throw error;
       }
       
-      console.error(`Network error during verification (attempt ${attempt}):`, error);
+      console.error(`Error during verification (attempt ${attempt}):`, error);
       
       if (attempt === maxRetries) {
-        console.error('Max retries reached after network errors');
-        throw new Error('Network connection error. Please check your connection and try again.');
+        console.error('Max retries reached after errors');
+        throw new Error('Unable to verify member. Please try again later.');
       }
-      
-      console.log(`Waiting ${retryDelay}ms before retry...`);
-      await new Promise(resolve => setTimeout(resolve, retryDelay));
     }
   }
 
@@ -100,8 +111,10 @@ export const getAuthCredentials = (memberNumber: string) => ({
 export const handleSignInError = async (error: any, email: string, password: string) => {
   console.error('Sign in error:', error);
   
-  if (error.message.includes('refresh_token_not_found')) {
-    console.log('Refresh token error detected, clearing session and retrying...');
+  if (error.message?.includes('refresh_token_not_found') || 
+      error.message?.includes('token') || 
+      error.message?.includes('JWT')) {
+    console.log('Token error detected, clearing session and retrying...');
     await clearAuthState();
     
     // Retry sign in after clearing session
