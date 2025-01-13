@@ -29,23 +29,43 @@ export const clearAuthState = async () => {
 
 export const verifyMember = async (memberNumber: string) => {
   console.log('Verifying member:', memberNumber);
-  const { data: members, error: memberError } = await supabase
-    .from('members')
-    .select('id, member_number, status')
-    .eq('member_number', memberNumber)
-    .eq('status', 'active')
-    .limit(1);
+  
+  const maxRetries = 3;
+  const retryDelay = 1000; // 1 second
 
-  if (memberError) {
-    console.error('Member verification error:', memberError);
-    throw memberError;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const { data: members, error: memberError } = await supabase
+        .from('members')
+        .select('id, member_number, status')
+        .eq('member_number', memberNumber)
+        .eq('status', 'active')
+        .limit(1);
+
+      if (memberError) {
+        console.error(`Member verification error (attempt ${attempt}):`, memberError);
+        if (attempt === maxRetries) throw memberError;
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        continue;
+      }
+
+      if (!members || members.length === 0) {
+        throw new Error('Member not found or inactive');
+      }
+
+      return members[0];
+    } catch (error: any) {
+      if (error.message === 'Member not found or inactive') throw error;
+      
+      console.error(`Network error during verification (attempt ${attempt}):`, error);
+      if (attempt === maxRetries) {
+        throw new Error('Network connection error. Please check your connection and try again.');
+      }
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
   }
 
-  if (!members || members.length === 0) {
-    throw new Error('Member not found or inactive');
-  }
-
-  return members[0];
+  throw new Error('Failed to verify member after multiple attempts');
 };
 
 export const getAuthCredentials = (memberNumber: string) => ({
