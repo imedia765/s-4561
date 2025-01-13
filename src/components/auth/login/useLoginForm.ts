@@ -31,14 +31,9 @@ export const useLoginForm = () => {
       
       console.log('Attempting sign in with:', { email });
 
-      const redirectUrl = window.location.origin;
-      
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: {
-          redirectTo: redirectUrl
-        }
       });
 
       if (signInError) {
@@ -56,8 +51,7 @@ export const useLoginForm = () => {
             options: {
               data: {
                 member_number: memberNumber,
-              },
-              redirectTo: redirectUrl
+              }
             }
           });
 
@@ -74,10 +68,7 @@ export const useLoginForm = () => {
             
             const { data: finalSignInData, error: finalSignInError } = await supabase.auth.signInWithPassword({
               email,
-              password,
-              options: {
-                redirectTo: redirectUrl
-              }
+              password
             });
 
             if (finalSignInError) {
@@ -113,7 +104,6 @@ export const useLoginForm = () => {
 
         if (currentSession) {
           session = currentSession;
-          // Invalidate and refetch role data immediately after session is established
           await queryClient.invalidateQueries({ queryKey: ['userRole', currentSession.user.id] });
           break;
         }
@@ -129,7 +119,6 @@ export const useLoginForm = () => {
 
       console.log('Session established successfully');
       
-      // Clear queries and invalidate cache
       await queryClient.cancelQueries();
       await queryClient.clear();
       await queryClient.invalidateQueries();
@@ -139,12 +128,10 @@ export const useLoginForm = () => {
         description: "Welcome back!",
       });
 
-      // Reset loading state before redirect
       setLoading(false);
 
       if (isMobile) {
-        // For mobile, use window.location.replace to ensure a clean redirect
-        window.location.replace(redirectUrl);
+        window.location.replace('/');
       } else {
         navigate('/', { replace: true });
       }

@@ -45,31 +45,9 @@ export const useAuthSession = () => {
     }
   };
 
-  const handleAuthError = async (error: any) => {
-    console.error('Auth error:', error);
-    
-    if (error.message.includes('refresh_token_not_found') || 
-        error.message.includes('invalid refresh token')) {
-      console.log('Token refresh failed, signing out...');
-      await handleSignOut(true);
-      
-      toast({
-        title: "Session Expired",
-        description: "Please sign in again",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Authentication Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
   useEffect(() => {
     let mounted = true;
-    let authSubscription: { data: { subscription: { unsubscribe: () => void } } } | null = null;
+    let unsubscribe: (() => void) | undefined;
 
     console.log('Initializing auth session...');
     
@@ -79,8 +57,7 @@ export const useAuthSession = () => {
         
         if (error) {
           console.error('Error getting session:', error);
-          handleAuthError(error);
-          return;
+          throw error;
         }
 
         if (mounted) {
@@ -101,7 +78,7 @@ export const useAuthSession = () => {
     };
 
     const setupAuthListener = () => {
-      const { data } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
         if (!mounted) return;
 
         console.log('Auth state changed:', {
@@ -122,8 +99,7 @@ export const useAuthSession = () => {
         }
       });
 
-      authSubscription = data;
-      return data;
+      unsubscribe = subscription.unsubscribe;
     };
 
     setupAuthListener();
@@ -131,8 +107,8 @@ export const useAuthSession = () => {
 
     return () => {
       mounted = false;
-      if (authSubscription?.subscription) {
-        authSubscription.subscription.unsubscribe();
+      if (unsubscribe) {
+        unsubscribe();
       }
     };
   }, [queryClient, toast]);

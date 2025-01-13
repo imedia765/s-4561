@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
 import { expect, afterEach, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactNode } from 'react';
 import { JSDOM } from 'jsdom';
 
 const dom = new JSDOM('<!doctype html><html><body></body></html>', {
@@ -9,21 +11,39 @@ const dom = new JSDOM('<!doctype html><html><body></body></html>', {
   resources: 'usable'
 });
 
-global.window = dom.window as unknown as Window & typeof globalThis;
+global.window = dom.window;
 global.document = dom.window.document;
 global.navigator = {
   userAgent: 'node.js',
 } as Navigator;
 
-// Mock localStorage
-global.localStorage = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-  length: 0,
-  key: vi.fn(),
-} as unknown as Storage;
+// Create properly typed storage mock
+interface StorageMock {
+  [key: string]: string;
+}
+
+const createStorageMock = () => {
+  const storage: StorageMock = {};
+  return {
+    getItem: vi.fn((key: string) => storage[key] || null),
+    setItem: vi.fn((key: string, value: string) => {
+      storage[key] = value.toString();
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete storage[key];
+    }),
+    clear: vi.fn(() => {
+      Object.keys(storage).forEach(key => {
+        delete storage[key];
+      });
+    }),
+    length: 0,
+    key: vi.fn((index: number) => Object.keys(storage)[index] || null),
+  };
+};
+
+global.localStorage = createStorageMock() as unknown as Storage;
+global.sessionStorage = createStorageMock() as unknown as Storage;
 
 // Mock window.matchMedia
 global.window.matchMedia = vi.fn().mockImplementation(query => ({
@@ -37,9 +57,30 @@ global.window.matchMedia = vi.fn().mockImplementation(query => ({
   dispatchEvent: vi.fn(),
 }));
 
+// Create a wrapper with providers for testing
+export const renderWithProviders = (ui: React.ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+  return {
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        {ui}
+      </QueryClientProvider>
+    ),
+    queryClient,
+  };
+};
+
 // Cleanup after each test case
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   localStorage.clear();
+  sessionStorage.clear();
 });
