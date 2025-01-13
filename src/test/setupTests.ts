@@ -2,7 +2,8 @@ import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
 import { expect, afterEach, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactNode } from 'react';
+import { render } from '@testing-library/react';
+import { ReactElement } from 'react';
 import { JSDOM } from 'jsdom';
 
 const dom = new JSDOM('<!doctype html><html><body></body></html>', {
@@ -58,7 +59,7 @@ global.window.matchMedia = vi.fn().mockImplementation(query => ({
 }));
 
 // Create a wrapper with providers for testing
-export const renderWithProviders = (ui: React.ReactElement) => {
+export const renderWithProviders = (ui: ReactElement) => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {

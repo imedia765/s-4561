@@ -36,7 +36,7 @@ export const verifyMember = async (memberNumber: string) => {
 
       console.log(`Attempt ${attempt} to verify member ${memberNumber}`);
       
-      const { data: members, error: memberError } = await supabase
+      const { data: member, error: memberError } = await supabase
         .from('members')
         .select('id, member_number, status')
         .eq('member_number', memberNumber)
@@ -58,17 +58,25 @@ export const verifyMember = async (memberNumber: string) => {
         continue;
       }
 
-      if (!members) {
+      if (!member) {
         console.log('No member found or inactive status');
         throw new Error('Member not found or inactive');
       }
 
-      console.log('Member verified successfully:', members);
-      return members;
+      console.log('Member verified successfully:', member);
+      return member;
     } catch (error: any) {
       if (error.message === 'Member not found or inactive') {
         console.error('Member verification failed: Not found or inactive');
         throw error;
+      }
+      
+      if (error.message?.includes('Failed to fetch')) {
+        console.error(`Network error during verification (attempt ${attempt}):`, error);
+        if (attempt === maxRetries) {
+          throw new Error('Network connection error. Please check your connection and try again.');
+        }
+        continue;
       }
       
       console.error(`Error during verification (attempt ${attempt}):`, error);
