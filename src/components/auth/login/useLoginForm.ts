@@ -113,6 +113,8 @@ export const useLoginForm = () => {
 
         if (currentSession) {
           session = currentSession;
+          // Invalidate and refetch role data immediately after session is established
+          await queryClient.invalidateQueries({ queryKey: ['userRole', currentSession.user.id] });
           break;
         }
 
