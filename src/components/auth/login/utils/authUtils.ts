@@ -31,7 +31,7 @@ export const verifyMember = async (memberNumber: string) => {
   console.log('Verifying member:', memberNumber);
   
   const maxRetries = 3;
-  const retryDelay = 2000; // Increased to 2 seconds between retries
+  const retryDelay = 2000; // 2 seconds between retries
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -43,13 +43,10 @@ export const verifyMember = async (memberNumber: string) => {
 
       console.log(`Attempt ${attempt} to verify member ${memberNumber}`);
       
-      // Check network connectivity first
-      try {
-        await fetch('https://trzaeinxlytyqxptkuyj.supabase.co/rest/v1/health', {
-          method: 'HEAD'
-        });
-      } catch (networkError) {
-        console.error('Network connectivity check failed:', networkError);
+      // Check connectivity using Supabase client instead of direct fetch
+      const { error: healthError } = await supabase.from('members').select('count').limit(0);
+      if (healthError) {
+        console.error('Connectivity check failed:', healthError);
         if (attempt === maxRetries) {
           throw new Error('Network connection error. Please check your connection and try again.');
         }
