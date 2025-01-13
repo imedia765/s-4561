@@ -31,36 +31,60 @@ export const verifyMember = async (memberNumber: string) => {
   console.log('Verifying member:', memberNumber);
   
   const maxRetries = 3;
-  const retryDelay = 1000; // 1 second
+  const retryDelay = 1000; // 1 second delay between retries
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
+      console.log(`Attempt ${attempt} to verify member ${memberNumber}`);
+      
       const { data: members, error: memberError } = await supabase
         .from('members')
         .select('id, member_number, status')
         .eq('member_number', memberNumber)
         .eq('status', 'active')
-        .limit(1);
+        .limit(1)
+        .maybeSingle();
 
       if (memberError) {
         console.error(`Member verification error (attempt ${attempt}):`, memberError);
-        if (attempt === maxRetries) throw memberError;
+        
+        // Check for specific error types
+        if (memberError.message?.includes('JWT')) {
+          console.log('JWT error detected, clearing session...');
+          await clearAuthState();
+        }
+        
+        if (attempt === maxRetries) {
+          console.error('Max retries reached, throwing error');
+          throw memberError;
+        }
+        
+        console.log(`Waiting ${retryDelay}ms before retry...`);
         await new Promise(resolve => setTimeout(resolve, retryDelay));
         continue;
       }
 
-      if (!members || members.length === 0) {
+      if (!members) {
+        console.log('No member found or inactive status');
         throw new Error('Member not found or inactive');
       }
 
-      return members[0];
+      console.log('Member verified successfully:', members);
+      return members;
     } catch (error: any) {
-      if (error.message === 'Member not found or inactive') throw error;
+      if (error.message === 'Member not found or inactive') {
+        console.error('Member verification failed: Not found or inactive');
+        throw error;
+      }
       
       console.error(`Network error during verification (attempt ${attempt}):`, error);
+      
       if (attempt === maxRetries) {
+        console.error('Max retries reached after network errors');
         throw new Error('Network connection error. Please check your connection and try again.');
       }
+      
+      console.log(`Waiting ${retryDelay}ms before retry...`);
       await new Promise(resolve => setTimeout(resolve, retryDelay));
     }
   }
@@ -90,6 +114,7 @@ export const handleSignInError = async (error: any, email: string, password: str
     });
     
     if (retryError) {
+      console.error('Retry sign in failed:', retryError);
       throw retryError;
     }
   } else {
