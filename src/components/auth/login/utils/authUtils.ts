@@ -46,9 +46,8 @@ export const verifyMember = async (memberNumber: string) => {
       // Simple connectivity check using a lightweight query
       const { data: healthCheck, error: healthError } = await supabase
         .from('members')
-        .select('count')
-        .limit(1)
-        .single();
+        .select('id')
+        .limit(1);
 
       if (healthError) {
         console.error(`Connectivity check failed (attempt ${attempt}):`, healthError);
